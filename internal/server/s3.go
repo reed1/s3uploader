@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"path"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -11,6 +12,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
+
+type Storage interface {
+	Upload(ctx context.Context, clientName, remotePath string, body io.Reader, size int64) (string, error)
+	Exists(ctx context.Context, clientName, remotePath string) (bool, error)
+	Download(ctx context.Context, clientName, remotePath string) (io.ReadCloser, string, error)
+}
 
 type S3Client struct {
 	client     *s3.Client
@@ -96,6 +103,10 @@ func (c *S3Client) Download(ctx context.Context, clientName, remotePath string) 
 		Key:    aws.String(key),
 	})
 	if err != nil {
+		var noSuchKey *types.NoSuchKey
+		if errors.As(err, &noSuchKey) {
+			return nil, "", os.ErrNotExist
+		}
 		return nil, "", err
 	}
 

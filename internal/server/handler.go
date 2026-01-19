@@ -2,36 +2,42 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
+	"os"
 	"path"
 	"strings"
-
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 type Handler struct {
-	s3 *S3Client
+	storage Storage
 }
 
-func NewHandler(s3 *S3Client) *Handler {
-	return &Handler{s3: s3}
+func NewHandler(storage Storage) *Handler {
+	return &Handler{storage: storage}
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, auth *AuthMiddleware) {
-	mux.HandleFunc("GET /health", h.handleHealth)
-	mux.Handle("POST /upload", auth.Wrap(http.HandlerFunc(h.handleUpload)))
-	mux.Handle("GET /exists", auth.Wrap(http.HandlerFunc(h.handleExists)))
-	mux.Handle("GET /download", auth.Wrap(http.HandlerFunc(h.handleDownload)))
+	mux.HandleFunc("/health", h.handleHealth)
+	mux.Handle("/upload", auth.Wrap(http.HandlerFunc(h.handleUpload)))
+	mux.Handle("/exists", auth.Wrap(http.HandlerFunc(h.handleExists)))
+	mux.Handle("/download", auth.Wrap(http.HandlerFunc(h.handleDownload)))
 }
 
 func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	clientName := GetClientName(r.Context())
 
 	if err := r.ParseMultipartForm(100 << 20); err != nil {
@@ -57,7 +63,7 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s3Key, err := h.s3.Upload(r.Context(), clientName, remotePath, file, header.Size)
+	s3Key, err := h.storage.Upload(r.Context(), clientName, remotePath, file, header.Size)
 	if err != nil {
 		http.Error(w, "upload failed: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -72,6 +78,10 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleExists(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	clientName := GetClientName(r.Context())
 
 	remotePath := r.URL.Query().Get("path")
@@ -85,7 +95,7 @@ func (h *Handler) handleExists(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	exists, err := h.s3.Exists(r.Context(), clientName, remotePath)
+	exists, err := h.storage.Exists(r.Context(), clientName, remotePath)
 	if err != nil {
 		http.Error(w, "check failed: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -96,6 +106,10 @@ func (h *Handler) handleExists(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleDownload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	clientName := GetClientName(r.Context())
 
 	remotePath := r.URL.Query().Get("path")
@@ -109,10 +123,9 @@ func (h *Handler) handleDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, contentType, err := h.s3.Download(r.Context(), clientName, remotePath)
+	body, contentType, err := h.storage.Download(r.Context(), clientName, remotePath)
 	if err != nil {
-		var noSuchKey *types.NoSuchKey
-		if errors.As(err, &noSuchKey) {
+		if os.IsNotExist(err) {
 			http.Error(w, "file not found", http.StatusNotFound)
 			return
 		}
