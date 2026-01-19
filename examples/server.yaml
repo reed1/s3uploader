@@ -1,0 +1,22 @@
+server:
+  host: "0.0.0.0"
+  port: 8080
+  tls:
+    enabled: true
+    cert_file: "/path/to/cert.pem"
+    key_file: "/path/to/key.pem"
+
+s3:
+  endpoint: ""  # Leave empty for AWS, set for MinIO/etc
+  region: "us-east-1"
+  bucket: "mycompany-backups"
+  path_prefix: "backups/"
+  access_key_id: "${S3_ACCESS_KEY_ID}"
+  secret_access_key: "${S3_SECRET_ACCESS_KEY}"
+
+clients:
+  - name: "webapp-prod"
+    api_key: "sk_live_abc123..."
+
+  - name: "webapp-staging"
+    api_key: "sk_test_xyz789..."

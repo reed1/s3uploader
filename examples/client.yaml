@@ -1,0 +1,27 @@
+server:
+  url: "https://backup.mycompany.com:8080"
+  api_key: "sk_live_abc123..."
+
+database:
+  path: "/var/lib/s3uploader/client.db"
+
+watches:
+  - local_path: "/var/www/webapp/uploads"
+    remote_prefix: "uploads/"
+    recursive: true
+
+  - local_path: "/var/www/webapp/documents"
+    remote_prefix: "documents/"
+    recursive: true
+
+scan:
+  upload_existing: false
+
+stability:
+  debounce_seconds: 3
+  max_attempts: 100
+
+upload:
+  retry_attempts: 3
+  retry_delay_seconds: 5
+  max_file_size_mb: 100
