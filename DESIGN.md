@@ -85,11 +85,9 @@ s3:
 clients:
   - name: "webapp-prod"
     api_key: "sk_live_abc123..."
-    max_file_size_mb: 100
 
   - name: "webapp-staging"
     api_key: "sk_test_xyz789..."
-    max_file_size_mb: 50
 ```
 
 ### API Endpoints
@@ -185,6 +183,7 @@ stability:
 upload:
   retry_attempts: 3
   retry_delay_seconds: 5
+  max_file_size_mb: 100  # Hard limit; files exceeding this are skipped
 ```
 
 ### Client SQLite Schema
@@ -195,23 +194,29 @@ CREATE TABLE files (
     local_path TEXT UNIQUE NOT NULL,
     remote_path TEXT NOT NULL,
     file_size INTEGER NOT NULL,
-    mtime INTEGER NOT NULL,          -- File's mtime when uploaded (Unix seconds)
-    uploaded_at INTEGER NOT NULL     -- When last uploaded (Unix seconds)
+    mtime INTEGER NOT NULL,              -- File's mtime when processed (Unix seconds)
+    uploaded_at INTEGER,                 -- When last uploaded (Unix seconds), NULL if skipped
+    skip_reason TEXT                     -- NULL if uploaded, otherwise reason for skipping
 );
 
 CREATE INDEX idx_files_local_path ON files(local_path);
 ```
 
+**Skip reasons:**
+- `file_too_large` - File exceeds `max_file_size_mb` limit
+
 **File tracking logic:**
-- Row exists → file has been uploaded to S3
-- Row exists but file's current mtime differs → needs re-upload
+- Row exists with `skip_reason = NULL` → file has been uploaded to S3
+- Row exists with `skip_reason != NULL` → file was skipped (check reason)
+- Row exists but file's current mtime differs → needs re-evaluation
 
 **Upload decision (on scan or inotify):**
 1. Query DB by `local_path`
-2. If not found → upload, insert new row
+2. If not found → evaluate file, insert new row
 3. If found → compare file's current mtime with DB `mtime`
-   - If different → re-upload, update `mtime` and `uploaded_at`
-   - If same → skip (already uploaded)
+   - If different → re-evaluate (file changed, may now be within size limit or vice versa)
+   - If same and `skip_reason = NULL` → skip (already uploaded)
+   - If same and `skip_reason != NULL` → skip (still skipped for same reason)
 
 ### Client Commands
 
@@ -268,25 +273,46 @@ After uploading, verify the file wasn't modified during the upload:
 6. Drain upload queue (process one-by-one with stability check)
 7. Switch to normal mode (continue processing queue as events arrive)
 
+**Inotify Events (fsnotify):**
+
+Watch for these events:
+- `Create` - new file created
+- `Write` - file modified
+
+Note: fsnotify doesn't expose `IN_CLOSE_WRITE` (write finished). The stability check handles detecting when writes are complete by monitoring mtime/size stability.
+
+**Queue Deduplication:**
+
+The upload queue maintains a companion `map[string]struct{}` (set) of file paths currently in the queue:
+- On enqueue: check set first (O(1)), only add if not present
+- On dequeue: remove from both queue and set
+- This prevents duplicate entries without scanning the queue
+
 **On New File (inotify):**
-1. Push to upload queue (no debounce here; stability check handles it)
+1. Check if file path is already in queue (O(1) set lookup)
+2. If not in queue: push to upload queue and add to set
 
 **Queue Processing (runs continuously after startup):**
 1. Pop entry from queue
-2. Query DB by `local_path`
-   - If in DB and mtime matches: skip (already uploaded)
-3. Run stability check:
+2. Stat file to check existence
+   - If file not found: silently drop (not an error), continue to next entry
+3. Query DB by `local_path`
+   - If in DB and mtime matches: skip (already processed, either uploaded or skipped)
+4. Check file size
+   - If file size > `max_file_size_mb`: record in DB with `skip_reason = "file_too_large"`, continue
+5. Run stability check:
    - Stat file, wait `debounce_seconds`, stat again
+   - If file not found during check: silently drop, continue to next entry
    - If unstable: increment attempt count, push to back of queue, continue
    - If max_attempts exceeded: log warning, remove from queue, continue
-4. Upload to server
-5. Post-upload verification:
+6. Upload to server
+7. Post-upload verification:
    - Stat file again
    - If mtime changed: re-queue for another upload
-6. On success:
-   - If new file: insert row with `uploaded_at = now()`, store mtime and file_size
-   - If re-upload (mtime changed): update `mtime`, `file_size`, `uploaded_at = now()`
-7. On failure:
+8. On success:
+   - If new file: insert row with `uploaded_at = now()`, `skip_reason = NULL`
+   - If re-upload (mtime changed): update `mtime`, `file_size`, `uploaded_at = now()`, `skip_reason = NULL`
+9. On failure:
    - Log error
    - Retry based on config (re-queue with retry count)
 
@@ -296,7 +322,7 @@ After uploading, verify the file wasn't modified during the upload:
 
 1. **TLS Required**: All client-server communication over HTTPS
 2. **Path Validation**: Server validates file paths (no `../` traversal)
-3. **Size Limits**: Enforced per-client on server side
+3. **Size Limits**: Enforced on client side (100MB default)
 
 ---
 
