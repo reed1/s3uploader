@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/reed/s3uploader/internal/client"
+	"s3uploader/internal/client"
 )
 
 func TestE2E_UploadAndVerify(t *testing.T) {

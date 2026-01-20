@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/reed/s3uploader/internal/client"
-	"github.com/reed/s3uploader/internal/server"
+	"s3uploader/internal/client"
+	"s3uploader/internal/server"
 )
 
 type testEnv struct {

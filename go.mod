@@ -1,4 +1,4 @@
-module github.com/reed/s3uploader
+module s3uploader
 
 go 1.21
 

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/reed/s3uploader/internal/server"
+	"s3uploader/internal/server"
 )
 
 func main() {
