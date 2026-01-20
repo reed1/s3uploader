@@ -17,12 +17,27 @@ import (
 	"github.com/reed/s3uploader/internal/server"
 )
 
-func TestE2E_UploadAndVerify(t *testing.T) {
+type testEnv struct {
+	tmpDir     string
+	watchDir   string
+	storageDir string
+	dbPath     string
+	storage    *server.FakeStorage
+	ts         *httptest.Server
+	db         *client.DB
+	queue      *client.Queue
+	uploader   *client.Uploader
+	watches    []client.WatchConfig
+	cfg        *client.Config
+}
+
+func newTestEnv(t *testing.T) *testEnv {
+	t.Helper()
+
 	tmpDir, err := os.MkdirTemp("", "s3uploader-e2e-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
 
 	watchDir := filepath.Join(tmpDir, "watch")
 	storageDir := filepath.Join(tmpDir, "storage")
@@ -44,13 +59,13 @@ func TestE2E_UploadAndVerify(t *testing.T) {
 	mux := http.NewServeMux()
 	handler.RegisterRoutes(mux, auth)
 	ts := httptest.NewServer(mux)
-	defer ts.Close()
 
 	db, err := client.NewDB(dbPath)
 	if err != nil {
+		ts.Close()
+		os.RemoveAll(tmpDir)
 		t.Fatalf("failed to create db: %v", err)
 	}
-	defer db.Close()
 
 	queue := client.NewQueue()
 	uploader := client.NewUploader(ts.URL, "test-api-key")
@@ -59,49 +74,42 @@ func TestE2E_UploadAndVerify(t *testing.T) {
 		{LocalPath: watchDir, RemotePrefix: "uploads/", Recursive: true},
 	}
 
-	watcher, err := client.NewWatcher(watches, queue)
-	if err != nil {
-		t.Fatalf("failed to create watcher: %v", err)
-	}
-	defer watcher.Close()
-
-	if err := watcher.Start(); err != nil {
-		t.Fatalf("failed to start watcher: %v", err)
-	}
-
 	cfg := &client.Config{
 		Stability: client.StabilityConfig{DebounceSeconds: 1, MaxAttempts: 10},
 		Upload:    client.UploadConfig{RetryAttempts: 3, RetryDelaySeconds: 1, MaxFileSizeMB: 100},
 	}
 
-	stopProcessor := make(chan struct{})
-	go processQueueForTest(queue, db, uploader, cfg, stopProcessor)
-	defer close(stopProcessor)
-
-	testFiles := generateRandomFiles(t, watchDir, 5)
-
-	waitForUploads(t, db, testFiles, 30*time.Second)
-
-	for localPath, expectedHash := range testFiles {
-		relPath, _ := filepath.Rel(watchDir, localPath)
-		remotePath := filepath.Join("uploads", relPath)
-		storagePath := storage.GetFilePath("test-client", remotePath)
-
-		actualHash := hashFile(t, storagePath)
-		if actualHash != expectedHash {
-			t.Errorf("hash mismatch for %s: expected %s, got %s", localPath, expectedHash, actualHash)
-		}
+	return &testEnv{
+		tmpDir:     tmpDir,
+		watchDir:   watchDir,
+		storageDir: storageDir,
+		dbPath:     dbPath,
+		storage:    storage,
+		ts:         ts,
+		db:         db,
+		queue:      queue,
+		uploader:   uploader,
+		watches:    watches,
+		cfg:        cfg,
 	}
+}
 
-	t.Logf("all %d files uploaded and verified successfully", len(testFiles))
+func (e *testEnv) cleanup() {
+	e.db.Close()
+	e.ts.Close()
+	os.RemoveAll(e.tmpDir)
 }
 
 func generateRandomFiles(t *testing.T, dir string, count int) map[string]string {
+	return generateRandomFilesWithPrefix(t, dir, count, "file_")
+}
+
+func generateRandomFilesWithPrefix(t *testing.T, dir string, count int, prefix string) map[string]string {
 	t.Helper()
 	files := make(map[string]string)
 
 	for i := 0; i < count; i++ {
-		filename := fmt.Sprintf("file_%d.bin", i)
+		filename := fmt.Sprintf("%s%d.bin", prefix, i)
 		path := filepath.Join(dir, filename)
 
 		size := 1024 + (i * 512)
