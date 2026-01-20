@@ -12,5 +12,14 @@ build-linux:
 test:
     go test -v ./test/...
 
+test-cover:
+    go test -v -coverprofile=coverage.out -coverpkg=./internal/... ./test/...
+    go tool cover -func=coverage.out
+
+test-cover-html:
+    go test -v -coverprofile=coverage.out -coverpkg=./internal/... ./test/...
+    go tool cover -html=coverage.out -o coverage.html
+    @echo "Coverage report written to coverage.html"
+
 clean:
     rm -rf dist/

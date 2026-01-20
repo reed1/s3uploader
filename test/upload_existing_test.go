@@ -31,7 +31,7 @@ func TestE2E_UploadExisting_False(t *testing.T) {
 	}
 
 	stopProcessor := make(chan struct{})
-	go processQueueForTest(env.queue, env.db, env.uploader, env.cfg, stopProcessor)
+	go env.processor.Run(stopProcessor)
 	defer close(stopProcessor)
 
 	time.Sleep(500 * time.Millisecond)
@@ -85,7 +85,7 @@ func TestE2E_UploadExisting_True(t *testing.T) {
 	}
 
 	stopProcessor := make(chan struct{})
-	go processQueueForTest(env.queue, env.db, env.uploader, env.cfg, stopProcessor)
+	go env.processor.Run(stopProcessor)
 	defer close(stopProcessor)
 
 	time.Sleep(500 * time.Millisecond)

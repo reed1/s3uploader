@@ -29,6 +29,7 @@ type testEnv struct {
 	uploader   *client.Uploader
 	watches    []client.WatchConfig
 	cfg        *client.Config
+	processor  *client.Processor
 }
 
 func newTestEnv(t *testing.T) *testEnv {
@@ -79,6 +80,8 @@ func newTestEnv(t *testing.T) *testEnv {
 		Upload:    client.UploadConfig{RetryAttempts: 3, RetryDelaySeconds: 1, MaxFileSizeMB: 100},
 	}
 
+	processor := client.NewProcessor(queue, db, uploader, cfg)
+
 	return &testEnv{
 		tmpDir:     tmpDir,
 		watchDir:   watchDir,
@@ -91,6 +94,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		uploader:   uploader,
 		watches:    watches,
 		cfg:        cfg,
+		processor:  processor,
 	}
 }
 
@@ -170,102 +174,4 @@ func waitForUploads(t *testing.T, db *client.DB, files map[string]string, timeou
 	}
 
 	t.Fatalf("timed out waiting for uploads")
-}
-
-func processQueueForTest(queue *client.Queue, db *client.DB, uploader *client.Uploader, cfg *client.Config, stop <-chan struct{}) {
-	maxSizeBytes := int64(cfg.Upload.MaxFileSizeMB) * 1024 * 1024
-	debounce := time.Duration(cfg.Stability.DebounceSeconds) * time.Second
-
-	for {
-		select {
-		case <-stop:
-			return
-		default:
-		}
-
-		entry, ok := queue.Dequeue()
-		if !ok {
-			time.Sleep(100 * time.Millisecond)
-			continue
-		}
-
-		processEntryForTest(entry, queue, db, uploader, maxSizeBytes, debounce, cfg)
-	}
-}
-
-func processEntryForTest(entry client.QueueEntry, queue *client.Queue, db *client.DB, uploader *client.Uploader, maxSizeBytes int64, debounce time.Duration, cfg *client.Config) {
-	info, err := os.Stat(entry.LocalPath)
-	if err != nil {
-		return
-	}
-
-	rec, err := db.GetFile(entry.LocalPath)
-	if err != nil {
-		return
-	}
-
-	currentMtime := info.ModTime().UTC().Unix()
-	if rec != nil && rec.Mtime == currentMtime {
-		return
-	}
-
-	if info.Size() > maxSizeBytes {
-		reason := "file_too_large"
-		if rec == nil {
-			db.InsertFile(entry.LocalPath, entry.RemotePath, info.Size(), currentMtime, &reason)
-		} else {
-			db.UpdateFile(entry.LocalPath, entry.RemotePath, info.Size(), currentMtime, &reason)
-		}
-		return
-	}
-
-	time.Sleep(debounce)
-
-	info2, err := os.Stat(entry.LocalPath)
-	if err != nil {
-		return
-	}
-
-	mtime2 := info2.ModTime().UTC().Unix()
-	if mtime2 != currentMtime || info2.Size() != info.Size() {
-		entry.AttemptCount++
-		if entry.AttemptCount >= cfg.Stability.MaxAttempts {
-			return
-		}
-		queue.EnqueueWithAttempts(entry.LocalPath, entry.RemotePath, entry.AttemptCount)
-		return
-	}
-
-	var lastErr error
-	for attempt := 0; attempt < cfg.Upload.RetryAttempts; attempt++ {
-		if attempt > 0 {
-			time.Sleep(time.Duration(cfg.Upload.RetryDelaySeconds) * time.Second)
-		}
-
-		_, lastErr = uploader.Upload(entry.LocalPath, entry.RemotePath)
-		if lastErr == nil {
-			break
-		}
-	}
-
-	if lastErr != nil {
-		return
-	}
-
-	info3, err := os.Stat(entry.LocalPath)
-	if err != nil {
-		return
-	}
-
-	mtime3 := info3.ModTime().UTC().Unix()
-	if mtime3 != currentMtime {
-		queue.Enqueue(entry.LocalPath, entry.RemotePath)
-		return
-	}
-
-	if rec == nil {
-		db.InsertFile(entry.LocalPath, entry.RemotePath, info.Size(), currentMtime, nil)
-	} else {
-		db.UpdateFile(entry.LocalPath, entry.RemotePath, info.Size(), currentMtime, nil)
-	}
 }

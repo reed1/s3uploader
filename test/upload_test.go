@@ -23,7 +23,7 @@ func TestE2E_UploadAndVerify(t *testing.T) {
 	}
 
 	stopProcessor := make(chan struct{})
-	go processQueueForTest(env.queue, env.db, env.uploader, env.cfg, stopProcessor)
+	go env.processor.Run(stopProcessor)
 	defer close(stopProcessor)
 
 	testFiles := generateRandomFiles(t, env.watchDir, 5)
