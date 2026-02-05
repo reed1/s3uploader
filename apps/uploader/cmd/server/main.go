@@ -24,9 +24,19 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
+	var db *server.DB
+	if cfg.Database.Path != "" {
+		var err error
+		db, err = server.NewDB(cfg.Database.Path)
+		if err != nil {
+			log.Fatalf("failed to open database: %v", err)
+		}
+		defer db.Close()
+	}
+
 	s3Client := server.NewS3Client(cfg.S3)
 	auth := server.NewAuthMiddleware(cfg.Clients)
-	handler := server.NewHandler(s3Client)
+	handler := server.NewHandler(s3Client, db)
 
 	mux := http.NewServeMux()
 	handler.RegisterRoutes(mux, auth)

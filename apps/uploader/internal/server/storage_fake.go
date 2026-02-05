@@ -21,15 +21,15 @@ func NewFakeStorage(baseDir, pathPrefix string) *FakeStorage {
 	}
 }
 
-func (f *FakeStorage) buildPath(clientName, remotePath string) string {
-	return filepath.Join(f.baseDir, f.pathPrefix, clientName, remotePath)
+func (f *FakeStorage) buildPath(clientID, remotePath string) string {
+	return filepath.Join(f.baseDir, f.pathPrefix, clientID, remotePath)
 }
 
-func (f *FakeStorage) Upload(ctx context.Context, clientName, remotePath string, body io.Reader, size int64) (string, error) {
+func (f *FakeStorage) Upload(ctx context.Context, clientID, remotePath string, body io.Reader, size int64) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	fullPath := f.buildPath(clientName, remotePath)
+	fullPath := f.buildPath(clientID, remotePath)
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
 		return "", err
 	}
@@ -44,15 +44,15 @@ func (f *FakeStorage) Upload(ctx context.Context, clientName, remotePath string,
 		return "", err
 	}
 
-	key := filepath.Join(f.pathPrefix, clientName, remotePath)
+	key := filepath.Join(f.pathPrefix, clientID, remotePath)
 	return key, nil
 }
 
-func (f *FakeStorage) Exists(ctx context.Context, clientName, remotePath string) (bool, error) {
+func (f *FakeStorage) Exists(ctx context.Context, clientID, remotePath string) (bool, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	fullPath := f.buildPath(clientName, remotePath)
+	fullPath := f.buildPath(clientID, remotePath)
 	_, err := os.Stat(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -63,11 +63,11 @@ func (f *FakeStorage) Exists(ctx context.Context, clientName, remotePath string)
 	return true, nil
 }
 
-func (f *FakeStorage) Download(ctx context.Context, clientName, remotePath string) (io.ReadCloser, string, error) {
+func (f *FakeStorage) Download(ctx context.Context, clientID, remotePath string) (io.ReadCloser, string, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	fullPath := f.buildPath(clientName, remotePath)
+	fullPath := f.buildPath(clientID, remotePath)
 	file, err := os.Open(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -79,6 +79,6 @@ func (f *FakeStorage) Download(ctx context.Context, clientName, remotePath strin
 	return file, "application/octet-stream", nil
 }
 
-func (f *FakeStorage) GetFilePath(clientName, remotePath string) string {
-	return f.buildPath(clientName, remotePath)
+func (f *FakeStorage) GetFilePath(clientID, remotePath string) string {
+	return f.buildPath(clientID, remotePath)
 }

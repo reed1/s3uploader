@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	Server  ServerConfig  `yaml:"server"`
-	S3      S3Config      `yaml:"s3"`
-	Clients []ClientEntry `yaml:"clients"`
+	Server   ServerConfig   `yaml:"server"`
+	S3       S3Config       `yaml:"s3"`
+	Database DatabaseConfig `yaml:"database"`
+	Clients  []ClientEntry  `yaml:"clients"`
 }
 
 type ServerConfig struct {
@@ -35,8 +36,12 @@ type S3Config struct {
 }
 
 type ClientEntry struct {
-	Name   string `yaml:"name"`
+	ID     string `yaml:"id"`
 	APIKey string `yaml:"api_key"`
+}
+
+type DatabaseConfig struct {
+	Path string `yaml:"path"`
 }
 
 var envVarRegex = regexp.MustCompile(`\$\{([^}]+)\}`)

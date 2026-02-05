@@ -14,9 +14,9 @@ import (
 )
 
 type Storage interface {
-	Upload(ctx context.Context, clientName, remotePath string, body io.Reader, size int64) (string, error)
-	Exists(ctx context.Context, clientName, remotePath string) (bool, error)
-	Download(ctx context.Context, clientName, remotePath string) (io.ReadCloser, string, error)
+	Upload(ctx context.Context, clientID, remotePath string, body io.Reader, size int64) (string, error)
+	Exists(ctx context.Context, clientID, remotePath string) (bool, error)
+	Download(ctx context.Context, clientID, remotePath string) (io.ReadCloser, string, error)
 }
 
 type S3Client struct {
@@ -53,12 +53,12 @@ func NewS3Client(cfg S3Config) *S3Client {
 	}
 }
 
-func (c *S3Client) buildKey(clientName, remotePath string) string {
-	return path.Join(c.pathPrefix, clientName, remotePath)
+func (c *S3Client) buildKey(clientID, remotePath string) string {
+	return path.Join(c.pathPrefix, clientID, remotePath)
 }
 
-func (c *S3Client) Upload(ctx context.Context, clientName, remotePath string, body io.Reader, size int64) (string, error) {
-	key := c.buildKey(clientName, remotePath)
+func (c *S3Client) Upload(ctx context.Context, clientID, remotePath string, body io.Reader, size int64) (string, error) {
+	key := c.buildKey(clientID, remotePath)
 
 	_, err := c.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(c.bucket),
@@ -73,8 +73,8 @@ func (c *S3Client) Upload(ctx context.Context, clientName, remotePath string, bo
 	return key, nil
 }
 
-func (c *S3Client) Exists(ctx context.Context, clientName, remotePath string) (bool, error) {
-	key := c.buildKey(clientName, remotePath)
+func (c *S3Client) Exists(ctx context.Context, clientID, remotePath string) (bool, error) {
+	key := c.buildKey(clientID, remotePath)
 
 	_, err := c.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(c.bucket),
@@ -95,8 +95,8 @@ func (c *S3Client) Exists(ctx context.Context, clientName, remotePath string) (b
 	return true, nil
 }
 
-func (c *S3Client) Download(ctx context.Context, clientName, remotePath string) (io.ReadCloser, string, error) {
-	key := c.buildKey(clientName, remotePath)
+func (c *S3Client) Download(ctx context.Context, clientID, remotePath string) (io.ReadCloser, string, error) {
+	key := c.buildKey(clientID, remotePath)
 
 	result, err := c.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(c.bucket),

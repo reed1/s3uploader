@@ -53,9 +53,9 @@ func newTestEnv(t *testing.T) *testEnv {
 
 	storage := server.NewFakeStorage(storageDir, "backups")
 	auth := server.NewAuthMiddleware([]server.ClientEntry{
-		{Name: "test-client", APIKey: "test-api-key"},
+		{ID: "test-client", APIKey: "test-api-key"},
 	})
-	handler := server.NewHandler(storage)
+	handler := server.NewHandler(storage, nil)
 
 	mux := http.NewServeMux()
 	handler.RegisterRoutes(mux, auth)

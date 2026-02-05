@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -11,10 +12,11 @@ import (
 
 type Handler struct {
 	storage Storage
+	db      *DB
 }
 
-func NewHandler(storage Storage) *Handler {
-	return &Handler{storage: storage}
+func NewHandler(storage Storage, db *DB) *Handler {
+	return &Handler{storage: storage, db: db}
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, auth *AuthMiddleware) {
@@ -38,7 +40,7 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	clientName := GetClientName(r.Context())
+	clientID := GetClientID(r.Context())
 
 	if err := r.ParseMultipartForm(100 << 20); err != nil {
 		http.Error(w, "failed to parse multipart form", http.StatusBadRequest)
@@ -63,10 +65,16 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s3Key, err := h.storage.Upload(r.Context(), clientName, remotePath, file, header.Size)
+	s3Key, err := h.storage.Upload(r.Context(), clientID, remotePath, file, header.Size)
 	if err != nil {
 		http.Error(w, "upload failed: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if h.db != nil {
+		if dbErr := h.db.InsertUpload(clientID, remotePath, header.Size); dbErr != nil {
+			log.Printf("failed to record upload in database: %v", dbErr)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -82,7 +90,7 @@ func (h *Handler) handleExists(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	clientName := GetClientName(r.Context())
+	clientID := GetClientID(r.Context())
 
 	remotePath := r.URL.Query().Get("path")
 	if remotePath == "" {
@@ -95,7 +103,7 @@ func (h *Handler) handleExists(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	exists, err := h.storage.Exists(r.Context(), clientName, remotePath)
+	exists, err := h.storage.Exists(r.Context(), clientID, remotePath)
 	if err != nil {
 		http.Error(w, "check failed: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -110,7 +118,7 @@ func (h *Handler) handleDownload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	clientName := GetClientName(r.Context())
+	clientID := GetClientID(r.Context())
 
 	remotePath := r.URL.Query().Get("path")
 	if remotePath == "" {
@@ -123,7 +131,7 @@ func (h *Handler) handleDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, contentType, err := h.storage.Download(r.Context(), clientName, remotePath)
+	body, contentType, err := h.storage.Download(r.Context(), clientID, remotePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			http.Error(w, "file not found", http.StatusNotFound)
