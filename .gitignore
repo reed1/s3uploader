@@ -1,3 +1,5 @@
-/dist
-/coverage.out
-/coverage.html
+dist/
+coverage.out
+coverage.html
+node_modules/
+.next/

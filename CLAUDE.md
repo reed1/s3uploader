@@ -2,8 +2,11 @@
 
 S3 Uploader: centralized server with S3 credentials, distributed clients watch directories and upload files.
 
-- **Server** (`cmd/server`): HTTP API, authenticates clients, uploads to S3
-- **Client** (`cmd/client`): Watches directories via inotify, queues uploads with stability checks
+Monorepo structure:
+- **apps/uploader** — Go: server (`cmd/server`), client (`cmd/client`), shared code (`internal/`)
+- **apps/dashboard** — Next.js dashboard (planned)
+- **docs/** — documentation
+- **ansible/** — deployment (planned)
 
 Go project using `just` for tasks. Pure Go, no CGO.
 

@@ -2,24 +2,16 @@ default:
     @just --list
 
 build:
-    go build -o dist/s3up-server ./cmd/server
-    go build -o dist/s3up ./cmd/client
+    just apps/uploader/build
 
 build-linux:
-    GOOS=linux GOARCH=amd64 go build -o dist/s3up-server-linux ./cmd/server
-    GOOS=linux GOARCH=amd64 go build -o dist/s3up-linux ./cmd/client
+    just apps/uploader/build-linux
 
 test:
-    go test -v ./test/...
+    just apps/uploader/test
 
 test-cover:
-    go test -v -coverprofile=coverage.out -coverpkg=./internal/... ./test/...
-    go tool cover -func=coverage.out
-
-test-cover-html:
-    go test -v -coverprofile=coverage.out -coverpkg=./internal/... ./test/...
-    go tool cover -html=coverage.out -o coverage.html
-    @echo "Coverage report written to coverage.html"
+    just apps/uploader/test-cover
 
 clean:
-    rm -rf dist/
+    just apps/uploader/clean
