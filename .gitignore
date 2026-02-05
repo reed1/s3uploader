@@ -2,4 +2,5 @@ dist/
 coverage.out
 coverage.html
 node_modules/
+apps/uploader/test/system/.env
 .next/

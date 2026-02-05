@@ -6,8 +6,8 @@ build:
     go build -o dist/s3up ./cmd/client
 
 build-linux:
-    GOOS=linux GOARCH=amd64 go build -o dist/s3up-server-linux ./cmd/server
-    GOOS=linux GOARCH=amd64 go build -o dist/s3up-linux ./cmd/client
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o dist/s3up-server-linux ./cmd/server
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o dist/s3up-linux ./cmd/client
 
 test:
     go test -v ./test/...
@@ -20,6 +20,9 @@ test-cover-html:
     go test -v -coverprofile=coverage.out -coverpkg=./internal/... ./test/...
     go tool cover -html=coverage.out -o coverage.html
     @echo "Coverage report written to coverage.html"
+
+test-system:
+    cd test/system && bash run.sh
 
 clean:
     rm -rf dist/

@@ -1,0 +1,6 @@
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates
+COPY dist/s3up-linux /usr/local/bin/s3up
+COPY test/system/client.yaml /etc/s3uploader/client.yaml
+RUN mkdir -p /data /watch
+CMD ["s3up", "--config", "/etc/s3uploader/client.yaml"]

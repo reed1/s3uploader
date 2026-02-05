@@ -13,5 +13,8 @@ test:
 test-cover:
     just apps/uploader/test-cover
 
+test-system:
+    just apps/uploader/test-system
+
 clean:
     just apps/uploader/clean

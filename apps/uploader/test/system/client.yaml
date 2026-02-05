@@ -1,0 +1,23 @@
+server:
+  url: "http://server:8080"
+  api_key: "sk_test_system_integration"
+
+database:
+  path: "/data/client.db"
+
+watches:
+  - local_path: "/watch"
+    remote_prefix: ""
+    recursive: true
+
+scan:
+  upload_existing: true
+
+stability:
+  debounce_seconds: 2
+  max_attempts: 50
+
+upload:
+  retry_attempts: 3
+  retry_delay_seconds: 2
+  max_file_size_mb: 50

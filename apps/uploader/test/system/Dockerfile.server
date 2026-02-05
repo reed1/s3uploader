@@ -1,0 +1,7 @@
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates
+COPY dist/s3up-server-linux /usr/local/bin/s3up-server
+COPY test/system/server.yaml /etc/s3uploader/server.yaml
+RUN mkdir -p /data
+EXPOSE 8080
+CMD ["s3up-server", "--config", "/etc/s3uploader/server.yaml"]
