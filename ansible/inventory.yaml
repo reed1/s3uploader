@@ -1,0 +1,8 @@
+all:
+  hosts:
+    sgtent:
+      ansible_user: reed
+      s3uploader_dir: "/home/{{ ansible_user }}/app/s3uploader"
+      s3uploader_bucket: r-reed
+      s3uploader_path_prefix: ""
+      s3uploader_port: 8080
