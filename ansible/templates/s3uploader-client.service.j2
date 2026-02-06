@@ -1,11 +1,11 @@
 # Managed by Ansible — do not edit manually. Change in repo and re-deploy.
 [Unit]
-Description=S3 Uploader Server
+Description=S3 Uploader Client
 After=network.target
 
 [Service]
 Type=simple
-ExecStart={{ s3uploader_dir }}/s3up-server --config {{ s3uploader_dir }}/server.yaml
+ExecStart={{ client_dir }}/s3up --config {{ client_dir }}/client.yaml
 Restart=on-failure
 RestartSec=5
 

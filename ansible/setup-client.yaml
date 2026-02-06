@@ -1,0 +1,78 @@
+- name: Resolve client and add host
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Load clients.yaml
+      set_fact:
+        all_clients: "{{ lookup('file', playbook_dir + '/clients.yaml') | from_yaml }}"
+
+    - name: Find matching client
+      set_fact:
+        matched_client: "{{ all_clients.clients | selectattr('id', 'equalto', client_id) | first }}"
+
+    - name: Look up API key from rpass
+      set_fact:
+        client_api_key: "{{ lookup('pipe', 'rpass get personal/s3uploader/clients/' + client_id) }}"
+
+    - name: Add client host to inventory
+      add_host:
+        name: "{{ matched_client.ssh }}"
+        groups: client_target
+        s3uploader_server_url: "{{ s3uploader_server_url }}"
+        client_api_key: "{{ client_api_key }}"
+        client_watches: "{{ matched_client.watches | default([]) }}"
+        client_dir: "~/app/s3uploader"
+
+- name: Deploy s3up client
+  hosts: client_target
+  gather_facts: false
+
+  tasks:
+    - name: Create app directory
+      file:
+        path: "{{ client_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy client binary
+      copy:
+        src: ../apps/uploader/dist/s3up-linux
+        dest: "{{ client_dir }}/s3up"
+        mode: "0755"
+
+    - name: Template client config
+      template:
+        src: templates/client.yaml.j2
+        dest: "{{ client_dir }}/client.yaml"
+        mode: "0600"
+
+    - name: Create systemd user directory
+      file:
+        path: ~/.config/systemd/user
+        state: directory
+        mode: "0755"
+
+    - name: Template systemd unit
+      template:
+        src: templates/s3uploader-client.service.j2
+        dest: ~/.config/systemd/user/s3uploader-client.service
+        mode: "0644"
+
+    - name: Enable linger for user
+      command: loginctl enable-linger {{ ansible_user_id }}
+      become: true
+      changed_when: false
+
+    - name: Reload systemd user daemon
+      systemd:
+        daemon_reload: true
+        scope: user
+
+    - name: Enable and restart service
+      systemd:
+        name: s3uploader-client
+        state: restarted
+        enabled: true
+        scope: user

@@ -1,4 +1,6 @@
 all:
+  vars:
+    s3uploader_server_url: "http://sgtent:8080"
   hosts:
     sgtent:
       ansible_user: reed

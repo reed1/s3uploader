@@ -33,7 +33,8 @@ def main():
     clients = yaml.safe_load(clients_path.read_text())["clients"]
 
     entries = []
-    for client_id in clients:
+    for client in clients:
+        client_id = client["id"]
         target = f"{RPASS_PREFIX}/{client_id}"
         if not rpass_has(target):
             rpass_gen(target)
