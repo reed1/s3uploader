@@ -5,7 +5,7 @@
   pre_tasks:
     - name: Lookup S3 credentials
       set_fact:
-        s3_creds: "{{ lookup('pipe', 'rpass get personal/s3uploader/aws_credentials') | from_json }}"
+        s3_creds: "{{ lookup('pipe', 'rpass get personal/s3uploader/s3_credentials') | from_json }}"
       delegate_to: localhost
 
     - name: Set S3 vars
