@@ -33,33 +33,15 @@ func (s *Scanner) Scan() error {
 }
 
 func (s *Scanner) scanWatch(watch WatchConfig) error {
-	if watch.Recursive {
-		return filepath.WalkDir(watch.LocalPath, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return nil
-			}
-			if d.IsDir() {
-				return nil
-			}
-			return s.enqueueFile(path, watch)
-		})
-	}
-
-	entries, err := os.ReadDir(watch.LocalPath)
-	if err != nil {
-		return err
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
+	return filepath.WalkDir(watch.LocalPath, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
 		}
-		path := filepath.Join(watch.LocalPath, entry.Name())
-		if err := s.enqueueFile(path, watch); err != nil {
-			return err
+		if d.IsDir() {
+			return nil
 		}
-	}
-	return nil
+		return s.enqueueFile(path, watch)
+	})
 }
 
 func (s *Scanner) enqueueFile(localPath string, watch WatchConfig) error {

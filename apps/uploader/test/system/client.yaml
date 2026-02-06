@@ -8,7 +8,6 @@ database:
 watches:
   - local_path: "/watch"
     remote_prefix: ""
-    recursive: true
 
 scan:
   upload_existing: true

@@ -8,11 +8,9 @@ database:
 watches:
   - local_path: "/var/www/webapp/uploads"
     remote_prefix: "uploads/"
-    recursive: true
 
   - local_path: "/var/www/webapp/documents"
     remote_prefix: "documents/"
-    recursive: true
 
 scan:
   upload_existing: false

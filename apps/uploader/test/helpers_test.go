@@ -72,7 +72,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	uploader := client.NewUploader(ts.URL, "test-api-key")
 
 	watches := []client.WatchConfig{
-		{LocalPath: watchDir, RemotePrefix: "uploads/", Recursive: true},
+		{LocalPath: watchDir, RemotePrefix: "uploads/"},
 	}
 
 	cfg := &client.Config{

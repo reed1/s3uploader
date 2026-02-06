@@ -27,7 +27,6 @@ type DatabaseConfig struct {
 type WatchConfig struct {
 	LocalPath    string `yaml:"local_path"`
 	RemotePrefix string `yaml:"remote_prefix"`
-	Recursive    bool   `yaml:"recursive"`
 }
 
 type ScanConfig struct {

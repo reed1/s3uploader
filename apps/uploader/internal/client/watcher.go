@@ -30,14 +30,8 @@ func NewWatcher(watches []WatchConfig, queue *Queue) (*Watcher, error) {
 
 func (w *Watcher) Start() error {
 	for _, watch := range w.watches {
-		if watch.Recursive {
-			if err := w.addRecursive(watch.LocalPath); err != nil {
-				return err
-			}
-		} else {
-			if err := w.watcher.Add(watch.LocalPath); err != nil {
-				return err
-			}
+		if err := w.addRecursive(watch.LocalPath); err != nil {
+			return err
 		}
 	}
 

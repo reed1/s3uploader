@@ -1,3 +1,5 @@
 clients:
-  - macbook
-  - sgtent
+  - id: prod-thtui
+    ssh: prod-thtui
+  - id: prod-simetris
+    ssh: prod-simetris
