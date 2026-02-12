@@ -6,27 +6,23 @@ import (
 )
 
 type Scanner struct {
-	watches        []WatchConfig
-	queue          *Queue
-	uploadExisting bool
-	cfg            *Config
+	queue *Queue
+	cfg   *Config
 }
 
-func NewScanner(watches []WatchConfig, queue *Queue, uploadExisting bool, cfg *Config) *Scanner {
+func NewScanner(queue *Queue, cfg *Config) *Scanner {
 	return &Scanner{
-		watches:        watches,
-		queue:          queue,
-		uploadExisting: uploadExisting,
-		cfg:            cfg,
+		queue: queue,
+		cfg:   cfg,
 	}
 }
 
 func (s *Scanner) Scan() error {
-	if !s.uploadExisting {
+	if !s.cfg.Scan.UploadExisting {
 		return nil
 	}
 
-	for _, watch := range s.watches {
+	for _, watch := range s.cfg.Watches {
 		if err := s.scanWatch(watch); err != nil {
 			return err
 		}

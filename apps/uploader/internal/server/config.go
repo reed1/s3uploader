@@ -2,7 +2,6 @@ package server
 
 import (
 	"os"
-	"regexp"
 
 	"gopkg.in/yaml.v3"
 )

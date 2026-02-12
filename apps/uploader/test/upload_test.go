@@ -12,7 +12,7 @@ func TestE2E_UploadAndVerify(t *testing.T) {
 	env := newTestEnv(t)
 	defer env.cleanup()
 
-	watcher, err := client.NewWatcher(env.watches, env.queue, env.cfg)
+	watcher, err := client.NewWatcher(env.queue, env.cfg)
 	if err != nil {
 		t.Fatalf("failed to create watcher: %v", err)
 	}

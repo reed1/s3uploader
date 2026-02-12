@@ -11,12 +11,11 @@ import (
 
 type Watcher struct {
 	watcher *fsnotify.Watcher
-	watches []WatchConfig
 	queue   *Queue
 	cfg     *Config
 }
 
-func NewWatcher(watches []WatchConfig, queue *Queue, cfg *Config) (*Watcher, error) {
+func NewWatcher(queue *Queue, cfg *Config) (*Watcher, error) {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -24,14 +23,13 @@ func NewWatcher(watches []WatchConfig, queue *Queue, cfg *Config) (*Watcher, err
 
 	return &Watcher{
 		watcher: w,
-		watches: watches,
 		queue:   queue,
 		cfg:     cfg,
 	}, nil
 }
 
 func (w *Watcher) Start() error {
-	for _, watch := range w.watches {
+	for _, watch := range w.cfg.Watches {
 		if err := w.addRecursive(watch.LocalPath); err != nil {
 			return err
 		}
@@ -100,7 +98,7 @@ func (w *Watcher) handleEvent(event fsnotify.Event) {
 }
 
 func (w *Watcher) getRemotePath(localPath string) string {
-	for _, watch := range w.watches {
+	for _, watch := range w.cfg.Watches {
 		if strings.HasPrefix(localPath, watch.LocalPath) {
 			relPath, err := filepath.Rel(watch.LocalPath, localPath)
 			if err != nil {

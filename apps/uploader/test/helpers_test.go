@@ -27,7 +27,6 @@ type testEnv struct {
 	db         *client.DB
 	queue      *client.Queue
 	uploader   *client.Uploader
-	watches    []client.WatchConfig
 	cfg        *client.Config
 	processor  *client.Processor
 }
@@ -69,18 +68,15 @@ func newTestEnv(t *testing.T) *testEnv {
 	}
 
 	queue := client.NewQueue()
-	uploader := client.NewUploader(ts.URL, "test-api-key")
-
-	watches := []client.WatchConfig{
-		{LocalPath: watchDir, RemotePrefix: "uploads/"},
-	}
 
 	cfg := &client.Config{
+		Server:    client.ServerConfig{URL: ts.URL, APIKey: "test-api-key"},
+		Watches:   []client.WatchConfig{{LocalPath: watchDir, RemotePrefix: "uploads/"}},
 		Stability: client.StabilityConfig{DebounceSeconds: 1, MaxAttempts: 10},
 		Upload:    client.UploadConfig{RetryAttempts: 3, RetryDelaySeconds: 1, MaxFileSizeMB: 100},
 	}
 
-	return buildTestEnv(t, tmpDir, watchDir, storageDir, dbPath, storage, ts, db, queue, uploader, watches, cfg)
+	return buildTestEnv(t, tmpDir, watchDir, storageDir, dbPath, storage, ts, db, queue, cfg)
 }
 
 func newTestEnvWithExcludes(t *testing.T, patterns []string) *testEnv {
@@ -120,13 +116,10 @@ func newTestEnvWithExcludes(t *testing.T, patterns []string) *testEnv {
 	}
 
 	queue := client.NewQueue()
-	uploader := client.NewUploader(ts.URL, "test-api-key")
-
-	watches := []client.WatchConfig{
-		{LocalPath: watchDir, RemotePrefix: "uploads/"},
-	}
 
 	cfg := &client.Config{
+		Server:          client.ServerConfig{URL: ts.URL, APIKey: "test-api-key"},
+		Watches:         []client.WatchConfig{{LocalPath: watchDir, RemotePrefix: "uploads/"}},
 		Stability:       client.StabilityConfig{DebounceSeconds: 1, MaxAttempts: 10},
 		Upload:          client.UploadConfig{RetryAttempts: 3, RetryDelaySeconds: 1, MaxFileSizeMB: 100},
 		ExcludePatterns: patterns,
@@ -135,12 +128,13 @@ func newTestEnvWithExcludes(t *testing.T, patterns []string) *testEnv {
 		t.Fatalf("failed to compile exclude patterns: %v", err)
 	}
 
-	return buildTestEnv(t, tmpDir, watchDir, storageDir, dbPath, storage, ts, db, queue, uploader, watches, cfg)
+	return buildTestEnv(t, tmpDir, watchDir, storageDir, dbPath, storage, ts, db, queue, cfg)
 }
 
-func buildTestEnv(t *testing.T, tmpDir, watchDir, storageDir, dbPath string, storage *server.FakeStorage, ts *httptest.Server, db *client.DB, queue *client.Queue, uploader *client.Uploader, watches []client.WatchConfig, cfg *client.Config) *testEnv {
+func buildTestEnv(t *testing.T, tmpDir, watchDir, storageDir, dbPath string, storage *server.FakeStorage, ts *httptest.Server, db *client.DB, queue *client.Queue, cfg *client.Config) *testEnv {
 	t.Helper()
 
+	uploader := client.NewUploader(cfg)
 	processor := client.NewProcessor(queue, db, uploader, cfg)
 
 	return &testEnv{
@@ -153,7 +147,6 @@ func buildTestEnv(t *testing.T, tmpDir, watchDir, storageDir, dbPath string, sto
 		db:         db,
 		queue:      queue,
 		uploader:   uploader,
-		watches:    watches,
 		cfg:        cfg,
 		processor:  processor,
 	}

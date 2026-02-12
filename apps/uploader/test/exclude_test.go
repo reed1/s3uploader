@@ -27,7 +27,8 @@ func TestE2E_ExcludePatterns(t *testing.T) {
 
 	normalFiles := generateRandomFiles(t, env.watchDir, 3)
 
-	scanner := client.NewScanner(env.watches, env.queue, true, env.cfg)
+	env.cfg.Scan.UploadExisting = true
+	scanner := client.NewScanner(env.queue, env.cfg)
 	if err := scanner.Scan(); err != nil {
 		t.Fatalf("failed to scan: %v", err)
 	}

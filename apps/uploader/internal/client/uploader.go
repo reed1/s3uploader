@@ -12,9 +12,8 @@ import (
 )
 
 type Uploader struct {
-	serverURL string
-	apiKey    string
-	client    *http.Client
+	cfg    *Config
+	client *http.Client
 }
 
 type UploadResponse struct {
@@ -23,11 +22,10 @@ type UploadResponse struct {
 	Size    int64  `json:"size"`
 }
 
-func NewUploader(serverURL, apiKey string) *Uploader {
+func NewUploader(cfg *Config) *Uploader {
 	return &Uploader{
-		serverURL: serverURL,
-		apiKey:    apiKey,
-		client:    &http.Client{},
+		cfg:    cfg,
+		client: &http.Client{},
 	}
 }
 
@@ -58,13 +56,13 @@ func (u *Uploader) Upload(localPath, remotePath string) (*UploadResponse, error)
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", u.serverURL+"/upload", &body)
+	req, err := http.NewRequest("POST", u.cfg.Server.URL+"/upload", &body)
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.Header.Set("Authorization", "Bearer "+u.apiKey)
+	req.Header.Set("Authorization", "Bearer "+u.cfg.Server.APIKey)
 
 	resp, err := u.client.Do(req)
 	if err != nil {
