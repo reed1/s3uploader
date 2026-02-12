@@ -36,25 +36,11 @@ type DatabaseConfig struct {
 	Path string `yaml:"path"`
 }
 
-var envVarRegex = regexp.MustCompile(`\$\{([^}]+)\}`)
-
-func substituteEnvVars(data []byte) []byte {
-	return envVarRegex.ReplaceAllFunc(data, func(match []byte) []byte {
-		varName := envVarRegex.FindSubmatch(match)[1]
-		if val, ok := os.LookupEnv(string(varName)); ok {
-			return []byte(val)
-		}
-		return match
-	})
-}
-
 func LoadConfig(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-
-	data = substituteEnvVars(data)
 
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
@@ -73,8 +59,6 @@ func LoadClientsConfig(path string) ([]ClientEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	data = substituteEnvVars(data)
 
 	var cf clientsFile
 	if err := yaml.Unmarshal(data, &cf); err != nil {

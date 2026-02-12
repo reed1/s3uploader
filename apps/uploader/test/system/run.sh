@@ -30,6 +30,26 @@ cleanup() {
 }
 trap cleanup EXIT
 
+echo "==> Generating server.yaml..."
+cat <<EOF > "$SCRIPT_DIR/server.yaml"
+server:
+  host: "0.0.0.0"
+  port: 8080
+
+s3:
+  endpoint: "$S3_ENDPOINT"
+  region: "$S3_REGION"
+  bucket: "$S3_BUCKET"
+  path_prefix: "system-test/"
+  access_key_id: "$S3_ACCESS_KEY_ID"
+  secret_access_key: "$S3_SECRET_ACCESS_KEY"
+
+database:
+  path: "/data/server.db"
+
+clients_config: "/etc/s3uploader/clients.yaml"
+EOF
+
 echo "==> Building Linux binaries..."
 cd "$REPO_ROOT"
 just build-linux

@@ -3,4 +3,5 @@ coverage.out
 coverage.html
 node_modules/
 apps/uploader/test/system/.env
+apps/uploader/test/system/server.yaml
 .next/
