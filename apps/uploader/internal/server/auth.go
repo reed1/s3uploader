@@ -90,8 +90,7 @@ func (a *AuthMiddleware) WatchClientsFile(path string) (*fsnotify.Watcher, error
 				}
 				clients, err := LoadClientsConfig(path)
 				if err != nil {
-					log.Printf("failed to reload clients config: %v", err)
-					continue
+					log.Fatalf("failed to reload clients config: %v", err)
 				}
 				a.UpdateClients(clients)
 				log.Printf("reloaded clients config: %d clients", len(clients))

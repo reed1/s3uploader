@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -63,6 +64,14 @@ func LoadClientsConfig(path string) ([]ClientEntry, error) {
 	var cf clientsFile
 	if err := yaml.Unmarshal(data, &cf); err != nil {
 		return nil, err
+	}
+
+	seen := make(map[string]string, len(cf.Clients))
+	for _, c := range cf.Clients {
+		if prev, ok := seen[c.APIKey]; ok {
+			return nil, fmt.Errorf("duplicate api_key between clients %q and %q", prev, c.ID)
+		}
+		seen[c.APIKey] = c.ID
 	}
 
 	return cf.Clients, nil
