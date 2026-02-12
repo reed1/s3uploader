@@ -1,0 +1,11 @@
+default:
+    @just --list
+
+setup-server: _build
+    ansible-playbook -i inventory.yaml setup-server.yaml
+
+setup-client client_id: _build
+    ansible-playbook -i inventory.yaml setup-client.yaml -e client_id={{client_id}}
+
+_build:
+    just ../build-linux

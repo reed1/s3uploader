@@ -18,3 +18,9 @@ test-system:
 
 clean:
     just apps/uploader/clean
+
+setup-server:
+    just ansible/setup-server
+
+setup-client client_id:
+    just ansible/setup-client {{client_id}}
