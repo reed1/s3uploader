@@ -16,6 +16,15 @@
       set_fact:
         client_api_key: "{{ lookup('pipe', 'rpass get personal/s3uploader/clients/' + client_id) }}"
 
+    - name: Build client binary
+      command: go build -o dist/s3up-client-linux ./cmd/client
+      args:
+        chdir: "{{ playbook_dir }}/../apps/uploader"
+      environment:
+        CGO_ENABLED: "0"
+        GOOS: linux
+        GOARCH: amd64
+
     - name: Add client host to inventory
       add_host:
         name: "{{ matched_client.ssh }}"
@@ -30,6 +39,11 @@
   gather_facts: false
 
   tasks:
+    - name: Get current username
+      command: whoami
+      register: whoami_result
+      changed_when: false
+
     - name: Create app directory
       file:
         path: "{{ client_dir }}"
@@ -38,7 +52,7 @@
 
     - name: Copy client binary
       copy:
-        src: ../apps/uploader/dist/s3up-linux
+        src: ../apps/uploader/dist/s3up-client-linux
         dest: "{{ client_dir }}/s3up"
         mode: "0755"
 
@@ -61,7 +75,7 @@
         mode: "0644"
 
     - name: Enable linger for user
-      command: loginctl enable-linger {{ ansible_user_id }}
+      command: loginctl enable-linger {{ whoami_result.stdout }}
       become: true
       changed_when: false
 

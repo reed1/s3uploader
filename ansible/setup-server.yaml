@@ -3,6 +3,16 @@
   gather_facts: false
 
   pre_tasks:
+    - name: Build server binary
+      command: go build -o dist/s3up-server-linux ./cmd/server
+      args:
+        chdir: "{{ playbook_dir }}/../apps/uploader"
+      environment:
+        CGO_ENABLED: "0"
+        GOOS: linux
+        GOARCH: amd64
+      delegate_to: localhost
+
     - name: Lookup S3 credentials
       set_fact:
         s3_creds: "{{ lookup('pipe', 'rpass get personal/s3uploader/s3_credentials') | from_json }}"

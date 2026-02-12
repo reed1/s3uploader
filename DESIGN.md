@@ -380,7 +380,7 @@ build:
 # Cross-compile for Linux (from any platform)
 build-linux:
 	GOOS=linux GOARCH=amd64 go build -o dist/s3up-server-linux ./cmd/server
-	GOOS=linux GOARCH=amd64 go build -o dist/s3up-linux ./cmd/client
+	GOOS=linux GOARCH=amd64 go build -o dist/s3up-client-linux ./cmd/client
 ```
 
 No CGO required - pure Go builds work on any platform.
