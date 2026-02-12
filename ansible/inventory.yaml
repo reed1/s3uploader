@@ -1,6 +1,7 @@
 all:
   vars:
     s3uploader_server_url: "https://s3uploader.r-mulyadi.com"
+    s3uploader_clients_config: "~/.dotfiles/rlocal/app/s3uploader/clients.yaml"
   hosts:
     sgtent:
       ansible_user: reed

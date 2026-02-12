@@ -4,13 +4,13 @@
   gather_facts: false
 
   tasks:
-    - name: Load clients.yaml
-      set_fact:
-        all_clients: "{{ lookup('file', playbook_dir + '/clients.yaml') | from_yaml }}"
+    - name: Load clients config
+      include_vars:
+        file: "{{ s3uploader_clients_config }}"
 
     - name: Find matching client
       set_fact:
-        matched_client: "{{ all_clients.clients | selectattr('id', 'equalto', client_id) | first }}"
+        matched_client: "{{ clients | selectattr('id', 'equalto', client_id) | first }}"
 
     - name: Look up API key from rpass
       set_fact:

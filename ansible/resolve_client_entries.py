@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Resolve client entries: ensure each client has an rpass API key, then output JSON.
 
-Reads clients.yaml, generates missing API keys via rpass, and prints
-a JSON array of {id, api_key} objects to stdout.
+Takes a path to clients.yaml as a CLI argument, generates missing API keys
+via rpass, and prints a JSON array of {id, api_key} objects to stdout.
 """
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import yaml
@@ -29,7 +30,7 @@ def rpass_get(target: str) -> str:
 
 
 def main():
-    clients_path = Path(__file__).parent / "clients.yaml"
+    clients_path = Path(sys.argv[1]).expanduser()
     clients = yaml.safe_load(clients_path.read_text())["clients"]
 
     entries = []
