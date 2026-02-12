@@ -15,15 +15,8 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Host string    `yaml:"host"`
-	Port int       `yaml:"port"`
-	TLS  TLSConfig `yaml:"tls"`
-}
-
-type TLSConfig struct {
-	Enabled  bool   `yaml:"enabled"`
-	CertFile string `yaml:"cert_file"`
-	KeyFile  string `yaml:"key_file"`
+	Host string `yaml:"host"`
+	Port int    `yaml:"port"`
 }
 
 type S3Config struct {

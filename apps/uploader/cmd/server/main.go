@@ -44,9 +44,5 @@ func main() {
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	log.Printf("starting server on %s", addr)
 
-	if cfg.Server.TLS.Enabled {
-		log.Fatal(http.ListenAndServeTLS(addr, cfg.Server.TLS.CertFile, cfg.Server.TLS.KeyFile, mux))
-	} else {
-		log.Fatal(http.ListenAndServe(addr, mux))
-	}
+	log.Fatal(http.ListenAndServe(addr, mux))
 }
