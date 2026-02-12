@@ -1,0 +1,3 @@
+clients:
+  - id: "test-client"
+    api_key: "sk_test_system_integration"

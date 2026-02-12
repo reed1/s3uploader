@@ -2,8 +2,13 @@ package server
 
 import (
 	"context"
+	"log"
 	"net/http"
+	"path/filepath"
 	"strings"
+	"sync"
+
+	"github.com/fsnotify/fsnotify"
 )
 
 type contextKey string
@@ -11,6 +16,7 @@ type contextKey string
 const clientIDKey contextKey = "clientID"
 
 type AuthMiddleware struct {
+	mu      sync.RWMutex
 	clients map[string]string // apiKey -> clientID
 }
 
@@ -38,7 +44,11 @@ func (a *AuthMiddleware) Wrap(next http.Handler) http.Handler {
 		}
 
 		apiKey := strings.TrimPrefix(auth, "Bearer ")
+
+		a.mu.RLock()
 		clientID, ok := a.clients[apiKey]
+		a.mu.RUnlock()
+
 		if !ok {
 			http.Error(w, "invalid api key", http.StatusUnauthorized)
 			return
@@ -47,6 +57,60 @@ func (a *AuthMiddleware) Wrap(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), clientIDKey, clientID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func (a *AuthMiddleware) UpdateClients(clients []ClientEntry) {
+	m := make(map[string]string, len(clients))
+	for _, c := range clients {
+		m[c.APIKey] = c.ID
+	}
+	a.mu.Lock()
+	a.clients = m
+	a.mu.Unlock()
+}
+
+func (a *AuthMiddleware) WatchClientsFile(path string) (*fsnotify.Watcher, error) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
+				if event.Name != path {
+					continue
+				}
+				if !event.Has(fsnotify.Write) && !event.Has(fsnotify.Create) {
+					continue
+				}
+				clients, err := LoadClientsConfig(path)
+				if err != nil {
+					log.Printf("failed to reload clients config: %v", err)
+					continue
+				}
+				a.UpdateClients(clients)
+				log.Printf("reloaded clients config: %d clients", len(clients))
+
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					return
+				}
+				log.Printf("clients file watcher error: %v", err)
+			}
+		}
+	}()
+
+	if err := watcher.Add(filepath.Dir(path)); err != nil {
+		watcher.Close()
+		return nil, err
+	}
+
+	return watcher, nil
 }
 
 func GetClientID(ctx context.Context) string {

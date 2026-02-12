@@ -24,6 +24,11 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
+	clients, err := server.LoadClientsConfig(cfg.ClientsConfig)
+	if err != nil {
+		log.Fatalf("failed to load clients config: %v", err)
+	}
+
 	var db *server.DB
 	if cfg.Database.Path != "" {
 		var err error
@@ -35,7 +40,14 @@ func main() {
 	}
 
 	s3Client := server.NewS3Client(cfg.S3)
-	auth := server.NewAuthMiddleware(cfg.Clients)
+	auth := server.NewAuthMiddleware(clients)
+
+	watcher, err := auth.WatchClientsFile(cfg.ClientsConfig)
+	if err != nil {
+		log.Fatalf("failed to start clients file watcher: %v", err)
+	}
+	defer watcher.Close()
+
 	handler := server.NewHandler(s3Client, db)
 
 	mux := http.NewServeMux()

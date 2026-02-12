@@ -8,10 +8,10 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig   `yaml:"server"`
-	S3       S3Config       `yaml:"s3"`
-	Database DatabaseConfig `yaml:"database"`
-	Clients  []ClientEntry  `yaml:"clients"`
+	Server        ServerConfig   `yaml:"server"`
+	S3            S3Config       `yaml:"s3"`
+	Database      DatabaseConfig `yaml:"database"`
+	ClientsConfig string         `yaml:"clients_config"`
 }
 
 type ServerConfig struct {
@@ -63,4 +63,24 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+type clientsFile struct {
+	Clients []ClientEntry `yaml:"clients"`
+}
+
+func LoadClientsConfig(path string) ([]ClientEntry, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	data = substituteEnvVars(data)
+
+	var cf clientsFile
+	if err := yaml.Unmarshal(data, &cf); err != nil {
+		return nil, err
+	}
+
+	return cf.Clients, nil
 }

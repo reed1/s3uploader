@@ -43,11 +43,19 @@
         src: ../apps/uploader/dist/s3up-server-linux
         dest: "{{ s3uploader_dir }}/s3up-server"
         mode: "0755"
+      notify: restart s3uploader-server
 
     - name: Template server config
       template:
         src: templates/server.yaml.j2
         dest: "{{ s3uploader_dir }}/server.yaml"
+        mode: "0600"
+      notify: restart s3uploader-server
+
+    - name: Template clients config
+      template:
+        src: templates/clients.yaml.j2
+        dest: "{{ s3uploader_dir }}/clients.yaml"
         mode: "0600"
 
     - name: Create systemd user directory
@@ -61,6 +69,7 @@
         src: templates/s3uploader-server.service.j2
         dest: ~/.config/systemd/user/s3uploader-server.service
         mode: "0644"
+      notify: restart s3uploader-server
 
     - name: Enable linger for user
       command: loginctl enable-linger {{ ansible_user }}
@@ -72,9 +81,15 @@
         daemon_reload: true
         scope: user
 
-    - name: Enable and restart service
+    - name: Enable service
+      systemd:
+        name: s3uploader-server
+        enabled: true
+        scope: user
+
+  handlers:
+    - name: restart s3uploader-server
       systemd:
         name: s3uploader-server
         state: restarted
-        enabled: true
         scope: user

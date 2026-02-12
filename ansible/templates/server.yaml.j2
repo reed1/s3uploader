@@ -14,8 +14,4 @@ s3:
 database:
   path: "{{ s3uploader_dir }}/server.db"
 
-clients:
-{% for client in client_entries %}
-  - id: "{{ client.id }}"
-    api_key: "{{ client.api_key }}"
-{% endfor %}
+clients_config: "{{ s3uploader_dir }}/clients.yaml"

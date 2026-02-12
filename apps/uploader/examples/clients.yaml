@@ -1,0 +1,6 @@
+clients:
+  - id: "webapp-prod"
+    api_key: "sk_live_abc123..."
+
+  - id: "webapp-staging"
+    api_key: "sk_test_xyz789..."

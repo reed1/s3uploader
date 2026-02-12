@@ -13,6 +13,4 @@ s3:
 database:
   path: "/data/server.db"
 
-clients:
-  - id: "test-client"
-    api_key: "sk_test_system_integration"
+clients_config: "/etc/s3uploader/clients.yaml"
