@@ -80,6 +80,67 @@ func newTestEnv(t *testing.T) *testEnv {
 		Upload:    client.UploadConfig{RetryAttempts: 3, RetryDelaySeconds: 1, MaxFileSizeMB: 100},
 	}
 
+	return buildTestEnv(t, tmpDir, watchDir, storageDir, dbPath, storage, ts, db, queue, uploader, watches, cfg)
+}
+
+func newTestEnvWithExcludes(t *testing.T, patterns []string) *testEnv {
+	t.Helper()
+
+	tmpDir, err := os.MkdirTemp("", "s3uploader-e2e-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+
+	watchDir := filepath.Join(tmpDir, "watch")
+	storageDir := filepath.Join(tmpDir, "storage")
+	dbPath := filepath.Join(tmpDir, "client.db")
+
+	if err := os.MkdirAll(watchDir, 0755); err != nil {
+		t.Fatalf("failed to create watch dir: %v", err)
+	}
+	if err := os.MkdirAll(storageDir, 0755); err != nil {
+		t.Fatalf("failed to create storage dir: %v", err)
+	}
+
+	storage := server.NewFakeStorage(storageDir, "backups")
+	auth := server.NewAuthMiddleware([]server.ClientEntry{
+		{ID: "test-client", APIKey: "test-api-key"},
+	})
+	handler := server.NewHandler(storage, nil)
+
+	mux := http.NewServeMux()
+	handler.RegisterRoutes(mux, auth)
+	ts := httptest.NewServer(mux)
+
+	db, err := client.NewDB(dbPath)
+	if err != nil {
+		ts.Close()
+		os.RemoveAll(tmpDir)
+		t.Fatalf("failed to create db: %v", err)
+	}
+
+	queue := client.NewQueue()
+	uploader := client.NewUploader(ts.URL, "test-api-key")
+
+	watches := []client.WatchConfig{
+		{LocalPath: watchDir, RemotePrefix: "uploads/"},
+	}
+
+	cfg := &client.Config{
+		Stability:       client.StabilityConfig{DebounceSeconds: 1, MaxAttempts: 10},
+		Upload:          client.UploadConfig{RetryAttempts: 3, RetryDelaySeconds: 1, MaxFileSizeMB: 100},
+		ExcludePatterns: patterns,
+	}
+	if err := cfg.CompileExcludePatterns(); err != nil {
+		t.Fatalf("failed to compile exclude patterns: %v", err)
+	}
+
+	return buildTestEnv(t, tmpDir, watchDir, storageDir, dbPath, storage, ts, db, queue, uploader, watches, cfg)
+}
+
+func buildTestEnv(t *testing.T, tmpDir, watchDir, storageDir, dbPath string, storage *server.FakeStorage, ts *httptest.Server, db *client.DB, queue *client.Queue, uploader *client.Uploader, watches []client.WatchConfig, cfg *client.Config) *testEnv {
+	t.Helper()
+
 	processor := client.NewProcessor(queue, db, uploader, cfg)
 
 	return &testEnv{
@@ -114,6 +175,33 @@ func generateRandomFilesWithPrefix(t *testing.T, dir string, count int, prefix s
 
 	for i := 0; i < count; i++ {
 		filename := fmt.Sprintf("%s%d.bin", prefix, i)
+		path := filepath.Join(dir, filename)
+
+		size := 1024 + (i * 512)
+		data := make([]byte, size)
+		if _, err := rand.Read(data); err != nil {
+			t.Fatalf("failed to generate random data: %v", err)
+		}
+
+		if err := os.WriteFile(path, data, 0644); err != nil {
+			t.Fatalf("failed to write file %s: %v", path, err)
+		}
+
+		hash := sha256.Sum256(data)
+		files[path] = hex.EncodeToString(hash[:])
+
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	return files
+}
+
+func generateFilesWithSuffix(t *testing.T, dir string, count int, suffix string) map[string]string {
+	t.Helper()
+	files := make(map[string]string)
+
+	for i := 0; i < count; i++ {
+		filename := fmt.Sprintf("file_%d%s", i, suffix)
 		path := filepath.Join(dir, filename)
 
 		size := 1024 + (i * 512)

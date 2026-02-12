@@ -100,15 +100,23 @@ func LoadConfig(path string) (*Config, error) {
 		cfg.Upload.MaxFileSizeMB = 100
 	}
 
-	for _, pattern := range cfg.ExcludePatterns {
-		re, err := regexp.Compile(pattern)
-		if err != nil {
-			return nil, fmt.Errorf("invalid exclude_pattern %q: %w", pattern, err)
-		}
-		cfg.excludeRegexps = append(cfg.excludeRegexps, re)
+	if err := cfg.CompileExcludePatterns(); err != nil {
+		return nil, err
 	}
 
 	return &cfg, nil
+}
+
+func (c *Config) CompileExcludePatterns() error {
+	c.excludeRegexps = nil
+	for _, pattern := range c.ExcludePatterns {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return fmt.Errorf("invalid exclude_pattern %q: %w", pattern, err)
+		}
+		c.excludeRegexps = append(c.excludeRegexps, re)
+	}
+	return nil
 }
 
 func (c *Config) IsExcluded(path string) bool {
