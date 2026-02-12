@@ -5,7 +5,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart={{ client_dir }}/s3up --config {{ client_dir }}/client.yaml
+ExecStart=%h/app/s3uploader/s3up --config %h/app/s3uploader/client.yaml
 Restart=on-failure
 RestartSec=5
 

@@ -6,10 +6,39 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
 
 	"s3uploader/internal/client"
 )
+
+func durationUntilNext(hour int) time.Duration {
+	now := time.Now()
+	next := time.Date(now.Year(), now.Month(), now.Day(), hour, 0, 0, 0, now.Location())
+	if !next.After(now) {
+		next = next.Add(24 * time.Hour)
+	}
+	return next.Sub(now)
+}
+
+func retryRestartLoop(processor *client.Processor, processorDone <-chan struct{}) {
+	for {
+		time.Sleep(durationUntilNext(1))
+
+		if !processor.HasFailures() {
+			continue
+		}
+
+		files := processor.FailedFiles()
+		log.Printf("exiting due to failed uploads, sample failed files: [%s]. service will restart and rescan.",
+			strings.Join(files, ", "))
+
+		processor.Stop()
+		<-processorDone
+		os.Exit(1)
+	}
+}
 
 func main() {
 	configPath := flag.String("config", "", "path to config file")
@@ -55,7 +84,13 @@ func main() {
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
 	processor := client.NewProcessor(queue, db, uploader, cfg)
-	go processor.Run(nil)
+	processorDone := make(chan struct{})
+	go func() {
+		processor.Run(nil)
+		close(processorDone)
+	}()
+
+	go retryRestartLoop(processor, processorDone)
 
 	<-stop
 	log.Println("shutting down")

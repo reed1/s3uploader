@@ -1,7 +1,10 @@
 package client
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -44,6 +47,13 @@ type UploadConfig struct {
 	MaxFileSizeMB     int `yaml:"max_file_size_mb"`
 }
 
+func expandTilde(p, home string) string {
+	if strings.HasPrefix(p, "~/") {
+		return filepath.Join(home, p[2:])
+	}
+	return p
+}
+
 func LoadConfig(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -53,6 +63,21 @@ func LoadConfig(path string) (*Config, error) {
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, err
+	}
+
+	home, _ := os.UserHomeDir()
+	cfg.Database.Path = expandTilde(cfg.Database.Path, home)
+	for i := range cfg.Watches {
+		cfg.Watches[i].LocalPath = expandTilde(cfg.Watches[i].LocalPath, home)
+	}
+
+	if !filepath.IsAbs(cfg.Database.Path) {
+		return nil, fmt.Errorf("database.path must be an absolute path, got %q", cfg.Database.Path)
+	}
+	for _, w := range cfg.Watches {
+		if !filepath.IsAbs(w.LocalPath) {
+			return nil, fmt.Errorf("watches.local_path must be an absolute path, got %q", w.LocalPath)
+		}
 	}
 
 	if cfg.Stability.DebounceSeconds == 0 {

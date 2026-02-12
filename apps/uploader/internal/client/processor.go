@@ -3,8 +3,12 @@ package client
 import (
 	"log"
 	"os"
+	"sync"
+	"sync/atomic"
 	"time"
 )
+
+const maxTrackedFailures = 10
 
 type Processor struct {
 	queue        *Queue
@@ -13,6 +17,10 @@ type Processor struct {
 	cfg          *Config
 	maxSizeBytes int64
 	debounce     time.Duration
+
+	failedMu    sync.Mutex
+	failedFiles []string
+	stopping    atomic.Bool
 }
 
 func NewProcessor(queue *Queue, db *DB, uploader *Uploader, cfg *Config) *Processor {
@@ -28,10 +36,16 @@ func NewProcessor(queue *Queue, db *DB, uploader *Uploader, cfg *Config) *Proces
 
 func (p *Processor) Run(stop <-chan struct{}) {
 	for {
-		select {
-		case <-stop:
+		if p.stopping.Load() {
 			return
-		default:
+		}
+
+		if stop != nil {
+			select {
+			case <-stop:
+				return
+			default:
+			}
 		}
 
 		entry, ok := p.queue.Dequeue()
@@ -41,6 +55,32 @@ func (p *Processor) Run(stop <-chan struct{}) {
 		}
 
 		p.ProcessEntry(entry)
+	}
+}
+
+func (p *Processor) Stop() {
+	p.stopping.Store(true)
+}
+
+func (p *Processor) HasFailures() bool {
+	p.failedMu.Lock()
+	defer p.failedMu.Unlock()
+	return len(p.failedFiles) > 0
+}
+
+func (p *Processor) FailedFiles() []string {
+	p.failedMu.Lock()
+	defer p.failedMu.Unlock()
+	result := make([]string, len(p.failedFiles))
+	copy(result, p.failedFiles)
+	return result
+}
+
+func (p *Processor) recordFailure(path string) {
+	p.failedMu.Lock()
+	defer p.failedMu.Unlock()
+	if len(p.failedFiles) < maxTrackedFailures {
+		p.failedFiles = append(p.failedFiles, path)
 	}
 }
 
@@ -105,6 +145,7 @@ func (p *Processor) ProcessEntry(entry QueueEntry) {
 
 	if lastErr != nil {
 		log.Printf("upload failed for %s after %d attempts: %v", entry.LocalPath, p.cfg.Upload.RetryAttempts, lastErr)
+		p.recordFailure(entry.LocalPath)
 		return
 	}
 

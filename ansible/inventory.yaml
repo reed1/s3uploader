@@ -1,6 +1,6 @@
 all:
   vars:
-    s3uploader_server_url: "http://sgtent:8080"
+    s3uploader_server_url: "https://s3uploader.r-mulyadi.com"
   hosts:
     sgtent:
       ansible_user: reed
@@ -8,4 +8,4 @@ all:
       s3uploader_dir: "/home/{{ ansible_user }}/app/s3uploader"
       s3uploader_bucket: "r-s3-prod"
       s3uploader_path_prefix: "s3uploader"
-      s3uploader_port: 8080
+      s3uploader_port: "{{ lookup('pipe', 'rpass port get sgtent/s3uploader') }}"
