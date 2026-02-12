@@ -9,13 +9,15 @@ type Scanner struct {
 	watches        []WatchConfig
 	queue          *Queue
 	uploadExisting bool
+	cfg            *Config
 }
 
-func NewScanner(watches []WatchConfig, queue *Queue, uploadExisting bool) *Scanner {
+func NewScanner(watches []WatchConfig, queue *Queue, uploadExisting bool, cfg *Config) *Scanner {
 	return &Scanner{
 		watches:        watches,
 		queue:          queue,
 		uploadExisting: uploadExisting,
+		cfg:            cfg,
 	}
 }
 
@@ -50,6 +52,9 @@ func (s *Scanner) enqueueFile(localPath string, watch WatchConfig) error {
 		return err
 	}
 	remotePath := filepath.Join(watch.RemotePrefix, relPath)
+	if s.cfg.IsExcluded(remotePath) {
+		return nil
+	}
 	s.queue.Enqueue(localPath, remotePath)
 	return nil
 }

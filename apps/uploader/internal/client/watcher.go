@@ -13,9 +13,10 @@ type Watcher struct {
 	watcher *fsnotify.Watcher
 	watches []WatchConfig
 	queue   *Queue
+	cfg     *Config
 }
 
-func NewWatcher(watches []WatchConfig, queue *Queue) (*Watcher, error) {
+func NewWatcher(watches []WatchConfig, queue *Queue, cfg *Config) (*Watcher, error) {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -25,6 +26,7 @@ func NewWatcher(watches []WatchConfig, queue *Queue) (*Watcher, error) {
 		watcher: w,
 		watches: watches,
 		queue:   queue,
+		cfg:     cfg,
 	}, nil
 }
 
@@ -87,6 +89,10 @@ func (w *Watcher) handleEvent(event fsnotify.Event) {
 
 	remotePath := w.getRemotePath(event.Name)
 	if remotePath == "" {
+		return
+	}
+
+	if w.cfg.IsExcluded(remotePath) {
 		return
 	}
 

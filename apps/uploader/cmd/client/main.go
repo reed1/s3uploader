@@ -63,7 +63,7 @@ func main() {
 	queue := client.NewQueue()
 	uploader := client.NewUploader(cfg.Server.URL, cfg.Server.APIKey)
 
-	watcher, err := client.NewWatcher(cfg.Watches, queue)
+	watcher, err := client.NewWatcher(cfg.Watches, queue, cfg)
 	if err != nil {
 		log.Fatalf("failed to create watcher: %v", err)
 	}
@@ -73,7 +73,7 @@ func main() {
 		log.Fatalf("failed to start watcher: %v", err)
 	}
 
-	scanner := client.NewScanner(cfg.Watches, queue, cfg.Scan.UploadExisting)
+	scanner := client.NewScanner(cfg.Watches, queue, cfg.Scan.UploadExisting, cfg)
 	if err := scanner.Scan(); err != nil {
 		log.Fatalf("failed to scan directories: %v", err)
 	}

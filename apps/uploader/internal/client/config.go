@@ -4,18 +4,22 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	Server    ServerConfig    `yaml:"server"`
-	Database  DatabaseConfig  `yaml:"database"`
-	Watches   []WatchConfig   `yaml:"watches"`
-	Scan      ScanConfig      `yaml:"scan"`
-	Stability StabilityConfig `yaml:"stability"`
-	Upload    UploadConfig    `yaml:"upload"`
+	Server          ServerConfig    `yaml:"server"`
+	Database        DatabaseConfig  `yaml:"database"`
+	Watches         []WatchConfig   `yaml:"watches"`
+	Scan            ScanConfig      `yaml:"scan"`
+	Stability       StabilityConfig `yaml:"stability"`
+	Upload          UploadConfig    `yaml:"upload"`
+	ExcludePatterns []string        `yaml:"exclude_patterns"`
+
+	excludeRegexps []*regexp.Regexp
 }
 
 type ServerConfig struct {
@@ -96,5 +100,22 @@ func LoadConfig(path string) (*Config, error) {
 		cfg.Upload.MaxFileSizeMB = 100
 	}
 
+	for _, pattern := range cfg.ExcludePatterns {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return nil, fmt.Errorf("invalid exclude_pattern %q: %w", pattern, err)
+		}
+		cfg.excludeRegexps = append(cfg.excludeRegexps, re)
+	}
+
 	return &cfg, nil
+}
+
+func (c *Config) IsExcluded(path string) bool {
+	for _, re := range c.excludeRegexps {
+		if re.MatchString(path) {
+			return true
+		}
+	}
+	return false
 }

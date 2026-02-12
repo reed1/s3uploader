@@ -15,12 +15,12 @@ func TestE2E_UploadExisting_False(t *testing.T) {
 
 	preExistingFiles := generateRandomFiles(t, env.watchDir, 3)
 
-	scanner := client.NewScanner(env.watches, env.queue, false)
+	scanner := client.NewScanner(env.watches, env.queue, false, env.cfg)
 	if err := scanner.Scan(); err != nil {
 		t.Fatalf("failed to scan: %v", err)
 	}
 
-	watcher, err := client.NewWatcher(env.watches, env.queue)
+	watcher, err := client.NewWatcher(env.watches, env.queue, env.cfg)
 	if err != nil {
 		t.Fatalf("failed to create watcher: %v", err)
 	}
@@ -69,12 +69,12 @@ func TestE2E_UploadExisting_True(t *testing.T) {
 
 	preExistingFiles := generateRandomFiles(t, env.watchDir, 3)
 
-	scanner := client.NewScanner(env.watches, env.queue, true)
+	scanner := client.NewScanner(env.watches, env.queue, true, env.cfg)
 	if err := scanner.Scan(); err != nil {
 		t.Fatalf("failed to scan: %v", err)
 	}
 
-	watcher, err := client.NewWatcher(env.watches, env.queue)
+	watcher, err := client.NewWatcher(env.watches, env.queue, env.cfg)
 	if err != nil {
 		t.Fatalf("failed to create watcher: %v", err)
 	}

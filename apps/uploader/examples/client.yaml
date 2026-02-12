@@ -23,3 +23,7 @@ upload:
   retry_attempts: 3
   retry_delay_seconds: 5
   max_file_size_mb: 100
+
+exclude_patterns:
+  - "/thumbnails/"
+  - "(?i)\\.tmp$"
