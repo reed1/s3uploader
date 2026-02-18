@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Resolve client entries: ensure each client has an rpass API key, then output JSON.
 
-Takes a path to clients.yaml as a CLI argument, generates missing API keys
+Takes a path to inventory.yaml as a CLI argument, generates missing API keys
 via rpass, and prints a JSON array of {id, api_key} objects to stdout.
 """
 
@@ -30,16 +30,19 @@ def rpass_get(target: str) -> str:
 
 
 def main():
-    clients_path = Path(sys.argv[1]).expanduser()
-    clients = yaml.safe_load(clients_path.read_text())["clients"]
+    inventory_path = Path(sys.argv[1]).expanduser()
+    inventory = yaml.safe_load(inventory_path.read_text())
+
+    hosts = inventory.get("all", {}).get("children", {}).get("servers", {}).get("hosts", {})
 
     entries = []
-    for client in clients:
-        client_id = client["id"]
-        target = f"{RPASS_PREFIX}/{client_id}"
+    for hostname, config in hosts.items():
+        if "sync_watches" not in config:
+            continue
+        target = f"{RPASS_PREFIX}/{hostname}"
         if not rpass_has(target):
             rpass_gen(target)
-        entries.append({"id": client_id, "api_key": rpass_get(target)})
+        entries.append({"id": hostname, "api_key": rpass_get(target)})
 
     print(json.dumps(entries))
 

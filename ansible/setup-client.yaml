@@ -4,13 +4,13 @@
   gather_facts: false
 
   tasks:
-    - name: Load clients config
-      include_vars:
-        file: "{{ s3uploader_clients_config }}"
+    - name: Load inventory config
+      set_fact:
+        app_inventory: "{{ lookup('file', s3uploader_clients_config) | from_yaml }}"
 
     - name: Find matching client
       set_fact:
-        matched_client: "{{ clients | selectattr('id', 'equalto', client_id) | first }}"
+        matched_host: "{{ app_inventory.all.children.servers.hosts[client_id] }}"
 
     - name: Look up API key from rpass
       set_fact:
@@ -27,11 +27,12 @@
 
     - name: Add client host to inventory
       add_host:
-        name: "{{ matched_client.ssh }}"
+        name: "{{ matched_host.ansible_host }}"
         groups: client_target
+        ansible_user: "{{ matched_host.ansible_user }}"
         s3uploader_server_url: "{{ s3uploader_server_url }}"
         client_api_key: "{{ client_api_key }}"
-        client_watches: "{{ matched_client.watches | default([]) }}"
+        client_watches: "{{ matched_host.sync_watches | default([]) }}"
         client_dir: "~/app/s3uploader"
 
 - name: Deploy s3up client
