@@ -1,6 +1,0 @@
-# Managed by Ansible — do not edit manually. Change in repo and re-deploy.
-clients:
-{% for client in client_entries %}
-  - id: "{{ client.id }}"
-    api_key: "{{ client.api_key }}"
-{% endfor %}

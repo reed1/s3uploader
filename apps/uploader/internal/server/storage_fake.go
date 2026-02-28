@@ -82,3 +82,58 @@ func (f *FakeStorage) Download(ctx context.Context, clientID, remotePath string)
 func (f *FakeStorage) GetFilePath(clientID, remotePath string) string {
 	return f.buildPath(clientID, remotePath)
 }
+
+func (f *FakeStorage) DeletePrefix(ctx context.Context, clientID, prefix string) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	dir := f.buildPath(clientID, prefix)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+
+	count := 0
+	for _, e := range entries {
+		if !e.IsDir() {
+			os.Remove(filepath.Join(dir, e.Name()))
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (f *FakeStorage) List(ctx context.Context, clientID, prefix string) ([]ListEntry, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	dir := f.buildPath(clientID, prefix)
+	var entries []ListEntry
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		clientRoot := f.buildPath(clientID, "") + string(filepath.Separator)
+		relPath, _ := filepath.Rel(clientRoot, path)
+		entries = append(entries, ListEntry{
+			Path: filepath.ToSlash(relPath),
+			Size: info.Size(),
+		})
+		return nil
+	})
+
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	return entries, nil
+}

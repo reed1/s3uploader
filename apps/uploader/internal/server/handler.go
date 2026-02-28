@@ -24,6 +24,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, auth *AuthMiddleware) {
 	mux.Handle("/upload", auth.Wrap(http.HandlerFunc(h.handleUpload)))
 	mux.Handle("/exists", auth.Wrap(http.HandlerFunc(h.handleExists)))
 	mux.Handle("/download", auth.Wrap(http.HandlerFunc(h.handleDownload)))
+	mux.Handle("/delete-prefix", auth.Wrap(http.HandlerFunc(h.handleDeletePrefix)))
+	mux.Handle("/list", auth.Wrap(http.HandlerFunc(h.handleList)))
 }
 
 func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -144,6 +146,66 @@ func (h *Handler) handleDownload(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", contentType)
 	io.Copy(w, body)
+}
+
+func (h *Handler) handleDeletePrefix(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	clientID := GetClientID(r.Context())
+
+	prefix := r.FormValue("prefix")
+	if prefix == "" {
+		http.Error(w, "missing prefix field", http.StatusBadRequest)
+		return
+	}
+
+	if !isValidPath(prefix) {
+		http.Error(w, "invalid prefix", http.StatusBadRequest)
+		return
+	}
+
+	deleted, err := h.storage.DeletePrefix(r.Context(), clientID, prefix)
+	if err != nil {
+		http.Error(w, "delete failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"deleted": deleted,
+	})
+}
+
+func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	clientID := GetClientID(r.Context())
+
+	prefix := r.URL.Query().Get("prefix")
+	if prefix != "" && !isValidPath(prefix) {
+		http.Error(w, "invalid prefix", http.StatusBadRequest)
+		return
+	}
+
+	entries, err := h.storage.List(r.Context(), clientID, prefix)
+	if err != nil {
+		http.Error(w, "list failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if entries == nil {
+		entries = []ListEntry{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"files": entries,
+	})
 }
 
 func isValidPath(p string) bool {
